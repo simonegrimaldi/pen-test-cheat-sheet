@@ -232,6 +232,7 @@
 <footer>
   <div class="foot-inner">
     <span>pentest://cheatsheet</span>
+    <a href="admin.html" style="color:var(--text-faint);text-decoration:none;transition:color .15s" onmouseover="this.style.color='var(--amber)'" onmouseout="this.style.color='var(--text-faint)'">⚙ admin</a>
     <span class="warn">solo per attività autorizzate e ambienti di test</span>
   </div>
 </footer>
@@ -244,7 +245,7 @@
            <WORD> = segnaposto manuale (viola) da adattare a mano
            // ... = commento (grigio)                                   */
 
-const PHASES = [
+const DEFAULT_PHASES = [
   {
     id:"recon", idx:"01", name:"Reconnaissance", color:"var(--cyan)",
     desc:"Scoprire il proprio IP, gli host vivi sulla rete e le porte/servizi aperti sul bersaglio.",
@@ -331,6 +332,15 @@ const PHASES = [
     ]
   },
 ];
+
+/* Load custom data from admin panel (localStorage), fall back to defaults */
+const PHASES = (function(){
+  try {
+    const raw = localStorage.getItem('pentest-cheatsheet-custom');
+    if (raw) { const d = JSON.parse(raw); if (Array.isArray(d) && d.length) return d; }
+  } catch(e){}
+  return DEFAULT_PHASES;
+})();
 
 /* ============ STATE ============ */
 const LS="pentest-cheatsheet-cfg";
